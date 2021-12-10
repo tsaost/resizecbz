@@ -149,11 +149,12 @@ def readConfigurationFile(arg0):
             with open(path, encoding='utf8') as file:
                 config.read_file(file)
                 resizeParameters = config['resize.cbz']
-                print(f'Program parameters from "{path}": ')
+                print(f'Reading parameters from "{path}": ')
                 break
 
     if not resizeParameters:
         # Create a sample config file so that user can change it
+        config['resize.cbz'] = {}
         resizeParameters = config['resize.cbz']
         # Output directory can be an absolute or relative path.
         # If set to None or '' then the resized files will be
