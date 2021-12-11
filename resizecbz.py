@@ -66,12 +66,12 @@ def resize(inputZip, outputZip, resizeLandscape, resizePortrait):
             # img.show()
 
 
-def resizeZippedImages(inputPath, outputPath, parameters):
+def resizeZippedImages(inputPath, outputPath, configParameters):
     """Resize images in file inputPath and save the new images in outputPath"""
     print(f"Resizing: {inputPath} -> {outputPath}")
-    value = int(parameters['resize_landscape'])
+    value = int(configParameters['resize_landscape'])
     resizeLandscape = (value, value)
-    value = int(parameters['resize_portrait'])
+    value = int(configParameters['resize_portrait'])
     resizePortrait = (value, value)
     tempPath = outputPath + ".0bd15818604b995cd9c00825a4c692d5d.temp"
     try:
