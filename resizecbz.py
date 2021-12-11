@@ -35,8 +35,8 @@ def resize(inputZip, outputZip, resizeLandscape, resizePortrait):
     for info in infoList:
         filename = info.filename
         _, ext = os.path.splitext(filename)
-        if not ext.lower() in (".jpg", ".jpeg", ".png", ".gif"):
-            outputZip.writestr(info, inputZip.read())
+        if not ext.lower() in (".jpg", ".jpeg", ".png", ".gif", ".webp"):
+            outputZip.writestr(info, inputZip.read(filename))
             continue
 
         with Image.open(inputZip.open(filename)) as img:
