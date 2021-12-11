@@ -29,14 +29,15 @@ def appendToErrorLog(text):
 
 def resize(inputZip, outputZip, resizeLandscape, resizePortrait):
     """Resize images inside inputZip and save the new images into outputZip"""
-    # infos = inputZip.infolist()
-    nameList = inputZip.namelist()
+    infoList = inputZip.infolist()
     i = 1
-    total = len(nameList)
-    for filename in nameList:
+    total = len(infoList)
+    for info in infoList:
+        filename = info.filename
         _, ext = os.path.splitext(filename)
         if not ext.lower() in (".jpg", ".jpeg", ".png", ".gif"):
-            raise ValueError(f"{filename} is not a supported image")
+            outputZip.writestr(info, inputZip.read())
+            continue
 
         with Image.open(inputZip.open(filename)) as img:
             # https://stackoverflow.com/questions/29367990/what-is-the-difference-between-image-resize-and-image-thumbnail-in-pillow-python
@@ -59,7 +60,7 @@ def resize(inputZip, outputZip, resizeLandscape, resizePortrait):
             i = i + 1
             buffer = io.BytesIO()
             img.save(buffer, format=img.format)
-            outputZip.writestr(filename, buffer.getvalue())
+            outputZip.writestr(info, buffer.getvalue())
             sys.stdout.flush()
             # output.getvalue()
             # img.show()
@@ -98,28 +99,27 @@ def resizeZippedImages(inputPath, outputPath, parameters):
         raise
 
 
-def resizeCbz(path, resizeParameters):
-    """resize the CBZ path with configuration specified in resizeParameters"""
+def resizeCbz(path, configParameters):
+    """resize the CBZ path with configuration specified in configParameters"""
     if not os.path.isfile(path):
         raise ValueError(f"{path} is not a file")
 
     name, ext = os.path.splitext(path)
-    if ext.lower() != ".cbz":
-        raise ValueError(f"{path} does not have extension .cbz")
+    if int(configParameters['ext_zip_or_cbz']) != 0:
+        if ext.lower() not in (".cbz", ".zip"):
+            raise ValueError(f"{path} does not have extension .cbz or .zip")
 
-    resizedFileExt = resizeParameters['resized_file_ext']
-    if not resizedFileExt.endswith('.cbz'):
-        raise ValueError(f"resized_file_ext({resizedFileExt}) " +
-                         "does not have extension .cbz")
+    resizedFileExt = configParameters['resized_file_ext']
     if not resizedFileExt.startswith('.'):
         raise ValueError(f"resized_file_ext({resizedFileExt}) " +
                          "does not start with period")
+    resizedFileExt = resizedFileExt + ext
 
     if path.endswith(resizedFileExt):
         raise ValueError(f"{path} has extension same ext({resizedFileExt})")
 
     outputPath = name + resizedFileExt
-    outputDirectory = resizeParameters['output_directory']
+    outputDirectory = configParameters['output_directory']
     if outputDirectory:
         outputPath = os.path.join(outputDirectory,
                                   os.path.basename(outputPath))
@@ -128,7 +128,7 @@ def resizeCbz(path, resizeParameters):
         # Not an error, just give a warning
         print(f"output {outputPath} already exists")
     else:
-        resizeZippedImages(path, outputPath, resizeParameters)
+        resizeZippedImages(path, outputPath, configParameters)
 
 
 def readConfigurationFile(arg0):
@@ -141,25 +141,25 @@ def readConfigurationFile(arg0):
 
     # print(f"cmdDirectory({cmdDirectory})")
     config = configparser.ConfigParser()
-    resizeParameters = None
+    configParameters = None
     for directory in os.curdir, homeConfigApp, homeConfig, home, cmdDirectory:
         path = os.path.abspath(os.path.join(directory, configFilename))
         # print(f"Trying to open config file {path}")
         if os.path.exists(path):
             with open(path, encoding='utf8') as file:
                 config.read_file(file)
-                resizeParameters = config['resize.cbz']
+                configParameters = config['resize.cbz']
                 print(f'Reading parameters from "{path}": ')
                 break
 
-    if not resizeParameters:
+    if not configParameters:
         # Create a sample config file so that user can change it
         config['resize.cbz'] = {}
-        resizeParameters = config['resize.cbz']
+        configParameters = config['resize.cbz']
         # Output directory can be an absolute or relative path.
         # If set to None or '' then the resized files will be
         # in the same directory as the source
-        resizeParameters['output_directory'] = 'resized'
+        configParameters['output_directory'] = 'resized'
 
         # Play around with these two parameters to to get the size that is most
         # pleasing for your eyes with the display.  In general you want them
@@ -171,11 +171,13 @@ def readConfigurationFile(arg0):
         # For example, on a older tablet with only a 1080x768 resolution both
         # values should be set to (1080, 1080) or (1366, 1366).
         # Obviously larger values means a larger file size
-        resizeParameters['resize_landscape'] = '1366'
-        resizeParameters['resize_portrait'] = '1080'
+        configParameters['resize_landscape'] = '1366'
+        configParameters['resize_portrait'] = '1080'
 
         # Can be anything, but must start with '.' and must end with '.cbz'
-        resizeParameters['resized_file_ext'] = '.resized.cbz'
+        configParameters['resized_file_ext'] = '.resized'
+        # By default, will only process files with extension ".zip" or ".cbz"
+        configParameters['ext_zip_or_cbz'] = '1'
 
         if os.name == 'nt':
             # For Windows, create sample in the app's directory
@@ -197,9 +199,11 @@ def readConfigurationFile(arg0):
             print(f"Create sample config file {samplePath}")
             with open(samplePath, 'w', encoding='utf8') as output:
                 config.write(output)
-        print("No user specified config, use default parameters")
+        print(f"Rename {samplePath} to {configFilename}\n" +
+              "and edit it if you want to change the default value\n" +
+              "No user specified config, use default parameters")
 
-    return resizeParameters
+    return configParameters
 
 
 if __name__ == '__main__':
@@ -210,15 +214,15 @@ if __name__ == '__main__':
         # Image size (xxxxpixels) exceeds limit..."
         Image.MAX_IMAGE_PIXELS = None
         arg0 = argv[0]
-        resizeParameters = readConfigurationFile(arg0)
-        for key in resizeParameters:
-            print(f"{key}={resizeParameters[key]}")
+        configParameters = readConfigurationFile(arg0)
+        for key in configParameters:
+            print(f"{key}={configParameters[key]}")
 
         if len(argv) > 1:
             for x in argv[1:]:
                 for path in glob.glob(x) if '*' in x or '?' in x else [x]:
                     try:
-                        resizeCbz(path, resizeParameters)
+                        resizeCbz(path, configParameters)
                     except ValueError as err:
                         appendToErrorLog(f"{path}: {err}")
         else:
@@ -227,9 +231,12 @@ if __name__ == '__main__':
             if os.path.isfile(inputPath):
                 if os.path.isfile(outputPath):
                     os.remove(outputPath)
-                resizeZippedImages(inputPath, outputPath, resizeParameters)
+                resizeZippedImages(inputPath, outputPath, configParameters)
             else:
-                print(f"Usage: {os.path.basename(arg0)} file1 file2...")
+                cmd = os.path.basename(arg0)
+                print(f"\nUsage: {cmd} file1 file2...\n" +
+                      "file1 can contain wildcards such as '*' and '?'\n\n" +
+                      "For example: {cmd} d:\\mycollection\\*.cbz xyz\\??.cbz")
 
 
 main(sys.argv)
