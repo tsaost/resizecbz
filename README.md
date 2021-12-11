@@ -16,6 +16,9 @@ You can control the maximum size of the images, the destination directory, and t
 
 By default the maximum width in landscape mode is 1366, the maximum height in portrait mode is 1080, the directory is a subdirectory "resized" underneath the source directory, and the default extension is "resized.cbz".
 
+The program will only attempt to resize images in files that have the extension .zip or .cbz. All other files will be ignore. If you have a zip file with an extension other than .zip or .cbz then you have to either rename the file to have the right extension, or edit the config file and set "ext_zip_or_cbz = 0".  But if you do that then you have to ensure that you only specify files that are actually zip files, else many errors will be generated when the script attemp to open files as a zip when you specify a general wildcard like "*.*".
+
+
 There is a pre-built Windows executable for users who don't have Python installed.  The executable can be found [here](https://github.com/tsaost/resizecbz/releases) and you have to look for it under "Assets"
 
 The autogenerate project web page is [here](https://tsaost.github.io/resizecbz/)
