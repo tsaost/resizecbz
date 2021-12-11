@@ -107,7 +107,11 @@ def resizeCbz(path, configParameters):
     name, ext = os.path.splitext(path)
     if int(configParameters['ext_zip_or_cbz']) != 0:
         if ext.lower() not in (".cbz", ".zip"):
-            raise ValueError(f"{path} does not have extension .cbz or .zip")
+            # Just print a warning without calling appendToErrorLog,
+            # so that user can specify directory/* to resize
+            # all the .cbz and .zip files in there.
+            print(f"{path} does not have extension .cbz or .zip")
+            return
 
     resizedFileExt = configParameters['resized_file_ext']
     if not resizedFileExt.startswith('.'):
